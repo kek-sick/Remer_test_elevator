@@ -21,6 +21,8 @@ public:
 		{
 			orders[i] = false;
 		}
+		thread th([&] {elevator_loop(); });
+		th.detach();
 	}
 	~Elevator() {
 		delete[] orders;
@@ -54,7 +56,7 @@ public:
 		{
 			orders[command.floor - 1] = true;
 		}
-		check_floors();
+		//check_floors();
 	}
 
 private:
@@ -62,6 +64,19 @@ private:
 	unsigned int current_floor;			// беззнаковые переменные для хранения этажности дома, текущего этажа.
 	int direction = 0;
 	bool *orders{ new bool[floors] };
+
+	void elevator_loop() {
+		while (true)
+		{
+			int active_orders = 0;
+			this_thread::sleep_for(chrono::milliseconds(1000));
+			for (int i = 0; i < floors; i++)
+			{
+				if (orders[i]) active_orders++;
+			}
+			if(active_orders) check_floors();
+		}
+	}
 
 	void check_floors() {
 		int orders_upper = 0;
@@ -129,9 +144,9 @@ int main() {
 	int input_floors;
 	cout << "Available elevator commands:" << endl
 		<< "F<floor> - calling the elevator from the floor specified;" << endl
-		<< "C<floor> - an order from the cabin to go to the floor specified;" << endl;
+		<< "C<floor> - an order from the cabin to go to the floor specified;" << endl
 		//<< "P - Pouse \ Continue elevator muvement;" << endl
-		//<< "S - Termenate the emulation." << endl << endl;
+		<< "S - Termenate the emulation." << endl << endl;
 
 	cout << "Enter the number of floors (from 2 to 999): ";
 	do{													
@@ -150,20 +165,24 @@ int main() {
 
 	Emu_Command emu_command;
 
-	do
+	while (true)
 	{
 		do
 		{
 			emu_command = parse_command();			//Ввод команды для лифта
+			if (emu_command.prefix == 'S')
+			{
+				system("pause");
+				return 0;
+			}
 			if (emu_command.floor > input_floors)	//Обработка ошибки ввода этажа в команде
 			{
 				cout << "No such floor. Repeat the input: ";
 			}
 		} while (emu_command.floor > input_floors);
+		
 		elevator.run_command(emu_command);
-		system("pause");
-	} while (true);
-
+	};
 	return 0;
 }
 
@@ -184,8 +203,13 @@ Emu_Command parse_command() {
 		input_err = cin.fail();
 		char prefix = command_buffer[0];
 		int command_floor;
-		if (prefix == 'F' || prefix == 'C')			//Выделение префикса команды
+		if (prefix == 'S') {
+			emu_command.prefix = prefix;
+			return emu_command;
+		};
+		if (prefix == 'F' || prefix == 'C')	//Выделение префикса команды
 		{
+			
 			input_err = false;
 			try
 			{
